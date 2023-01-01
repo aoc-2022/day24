@@ -2,7 +2,7 @@
 let infinite = System.Int32.MaxValue - 10
 
 let rec gcd x y = if y = 0 then x else gcd y (x % y)
-let input = File.ReadAllLines "/tmp/aoc/input.24.t2" |> Seq.toList
+let input = File.ReadAllLines "/tmp/aoc/input" |> Seq.toList
 
 type TimePos = int * int * int
 
@@ -64,7 +64,7 @@ let freeSpacesAtT (t: int) =
 
 type SnowField = Map<TimePos, int>
 
-let initialSnowField: SnowField =
+let initialSnowFieldRaw: SnowField =
     let snowField: SnowField =
         seq { 0..relevantTime }
         |> Seq.collect (fun t -> freeSpacesAtT t |> List.map (fun (x, y) -> t, x, y))
@@ -76,36 +76,50 @@ let initialSnowField: SnowField =
 let surr (x, y) =
     [ (x, y - 1); (x - 1, y); (x, y); (x + 1, y); (x, y + 1) ]
 
+let prevMap1: Map<TimePos, TimePos list> =
+    printfn "Building prevmap"
+
+    let prevs ((t, x, y): TimePos) =
+        let t = (t + relevantTime) % (relevantTime + 1)
+        let prevs = surr (x, y) |> List.map (fun (x, y) -> t, x, y)
+        prevs |> List.filter initialSnowFieldRaw.ContainsKey
+
+    initialSnowFieldRaw.Keys |> Seq.map (fun k -> k, prevs k) |> Map.ofSeq
+
 let removeUnreachable (field: SnowField) =
     printfn "Removing unreachable"
-    let unreachable ((t, x, y): TimePos) =
-        let t = (t + relevantTime) % (relevantTime + 1)
-        let s = surr (x, y) |> List.map (fun (x, y) -> (t, x, y))
-        let unreachable = s |> List.filter field.ContainsKey |> List.isEmpty
-        unreachable
+    let reachable ((t, x, y): TimePos, _) =
+        let prevs = prevMap1[(t, x, y)] |> List.filter field.ContainsKey
+        prevs.IsEmpty |> not
 
-    field
-    |> Map.toSeq
-    |> Seq.filter (fun (tp, _) -> unreachable tp |> not)
-    |> Map.ofSeq
+    field |> Map.toSeq |> Seq.filter reachable |> Map.ofSeq
 
-let prevMap : Map<TimePos,TimePos list> =
-    let prevs ((t,x,y):TimePos) =
+let rec removeUnreachableN (field: SnowField) =
+    let pre = field.Count
+    printfn $"removeUnreachableN (n={pre} field size={field.Count}"
+    let field = removeUnreachable field
+    let post = field.Count 
+    if pre = post then field else removeUnreachableN field 
+
+let initialSnowField = initialSnowFieldRaw |> removeUnreachableN
+
+let prevMap: Map<TimePos, TimePos list> =
+    printfn "Building prevmap"
+
+    let prevs ((t, x, y): TimePos) =
         let t = (t + relevantTime) % (relevantTime + 1)
         let prevs = surr (x, y) |> List.map (fun (x, y) -> t, x, y)
         prevs |> List.filter initialSnowField.ContainsKey
-    initialSnowField.Keys
-    |> Seq.map (fun k -> k, prevs k)
-    |> Map.ofSeq 
+
+    initialSnowFieldRaw.Keys |> Seq.map (fun k -> k, prevs k) |> Map.ofSeq
 
 let bestTime (field: SnowField) ((t, x, y), curr) =
     let pos = (t, x, y)
-    let t = (t + relevantTime) % (relevantTime + 1) 
-    let prevs = surr (x, y) |> List.map (fun (x, y) -> t, x, y)
+    let prevs = prevMap[(t, x, y)]
 
     let best =
         prevs
-        |> List.map field.TryFind
+        |> List.map (fun p -> field.TryFind p)
         |> List.filter Option.isSome
         |> List.map Option.get
         |> fun l -> if l.IsEmpty then [ infinite ] else l
@@ -115,17 +129,23 @@ let bestTime (field: SnowField) ((t, x, y), curr) =
     // printfn $"bestTime {(curr,best)}"
     pos, (min best curr)
 
+let removeMinValue (field:SnowField) : SnowField =
+    printfn "Removing min value"
+    let m = field.Values |> Seq.min
+    field |> Map.toSeq |> Seq.filter (fun (_,v) -> v > m) |> Map.ofSeq 
+
 let updateField (field: SnowField) =
     field |> Map.toSeq |> Seq.map (bestTime field) |> Map.ofSeq
 
 let rec improveIters (iter: int) (field: SnowField) =
     printfn $"Improve: iter = {iter}"
+
     if iter = 0 then
         field
     else
-        field |> updateField |> improveIters (iter - 1)
+        field |> updateField |> removeMinValue |> improveIters (iter - 1)
 
-let field = initialSnowField |> removeUnreachable |> improveIters 1000
+let field = initialSnowField |> removeUnreachableN |> improveIters 1000
 
 let findBestEndPos (field: SnowField) : int =
     field
@@ -145,14 +165,15 @@ let printMapAt (t: int) =
 
     let toSym (x, y) =
         let l = if lefts.Contains(x, y) then '<' else '.'
-        let r = if rights.Contains(x,y) then '>' else '.'
-        let n = if norths.Contains(x,y) then '^' else '.'
-        let s = if souths.Contains(x,y) then 'v' else '.'
-        match [l;r;n;s] |> List.filter (fun c -> c <> '.') with
+        let r = if rights.Contains(x, y) then '>' else '.'
+        let n = if norths.Contains(x, y) then '^' else '.'
+        let s = if souths.Contains(x, y) then 'v' else '.'
+
+        match [ l; r; n; s ] |> List.filter (fun c -> c <> '.') with
         | [] -> '.'
-        | [c] -> c
-        | l -> l.Length |> char |> fun c -> c + '0'
-        
+        | [ c ] -> c
+        | l -> l.Length |> char |> (fun c -> c + '0')
+
 
     let ys = seq { 0 .. height - 1 } |> Seq.toList
     let xs = seq { 0 .. width - 1 } |> Seq.toList
@@ -165,3 +186,5 @@ let printMapAt (t: int) =
 
 // printfn "5:"
 // printMapAt 5
+
+// prevMap |> Map.toSeq |> Seq.toList |> List.map (printfn "%A")
