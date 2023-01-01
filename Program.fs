@@ -2,7 +2,7 @@
 let infinite = System.Int32.MaxValue - 10
 
 let rec gcd x y = if y = 0 then x else gcd y (x % y)
-let input = File.ReadAllLines "/tmp/aoc/input" |> Seq.toList
+let input = File.ReadAllLines "/tmp/aoc/input.24.t2" |> Seq.toList
 
 type TimePos = int * int * int
 
@@ -132,7 +132,7 @@ let bestTime (field: SnowField) ((t, x, y), curr) =
 let removeMinValue (field:SnowField) : SnowField =
     printfn "Removing min value"
     let m = field.Values |> Seq.min
-    field |> Map.toSeq |> Seq.filter (fun (_,v) -> v > m) |> Map.ofSeq 
+    field |> Map.toSeq |> Seq.filter (fun ((t,x,y),v) -> ( (x,y) = endpos || v > m))|> Map.ofSeq 
 
 let updateField (field: SnowField) =
     field |> Map.toSeq |> Seq.map (bestTime field) |> Map.ofSeq
