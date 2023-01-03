@@ -15,9 +15,9 @@ type CurrState(field: SnowField, goal: Pos, time: int, unexplored: SnowField, po
         let atEnd ((x, y, z): TimePos) = (x, y) = goal
         pos |> Set.filter atEnd |> Set.isEmpty |> not
 
-let rec findSolution (endpos: int * int) (state: CurrState) : int =
+let rec findSolution (state: CurrState) : int =
     let foundEnd =
-        state.Pos |> Set.filter (fun (_, x, y) -> (x, y) = endpos) |> Set.isEmpty |> not
+        state.Pos |> Set.filter (fun (_, x, y) -> (x, y) = state.Goal) |> Set.isEmpty |> not
 
     if foundEnd then
         0
@@ -38,4 +38,4 @@ let rec findSolution (endpos: int * int) (state: CurrState) : int =
 
         let field = state.Unexplored.Remove nexts
         let nextState = CurrState(state.Field, state.Goal, state.Time + 1, field, nexts)
-        1 + findSolution endpos nextState
+        1 + findSolution nextState

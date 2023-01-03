@@ -13,7 +13,7 @@ type TimePos = int * int * int
 let sol1 () =
     let startPos = Set.singleton (0, fst input.Start, snd input.Start)
     let startState = CurrState(initialSnowField input,input.Goal,0,initialSnowField input,startPos)
-    findSolution input.Goal startState 
+    findSolution startState 
 
 // let sol2 () : int =
 //     let reachedGoalAt =
