@@ -40,7 +40,7 @@ let private toPoss (c: char) (lines: string list) : Set<int * int> =
 
 
 let readFile (fileName: string) =
-    let input = File.ReadAllLines "/tmp/aoc/input.24.t2" |> Seq.toList
+    let input = File.ReadAllLines fileName |> Seq.toList
     let startpos = input.Head.IndexOf '.' - 1, -1
     let endpos = input[ input.Length - 1 ].IndexOf '.' - 1, (input.Length - 2)
     let width = input.Head.Length - 2
